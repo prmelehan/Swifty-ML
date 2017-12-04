@@ -82,7 +82,7 @@ def train_and_convert(args):
     validation_steps = 50
     steps_per_epoch = 256
 
-    ## TESTING
+    # TESTING
     # epochs = 1
     # validation_steps = 2
     # steps_per_epoch = 5
@@ -156,8 +156,6 @@ def train_and_convert(args):
         for layer in model.layers[172:]:
             layer.trainable = True
 
-        for layer in model.layers:
-            print(str(layer) +  ": " + str(layer.trainable))
         model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
 
 
@@ -284,7 +282,99 @@ def train_and_convert(args):
         print("Saving CoreML model to: " + os.getcwd() + "/exported_models/coreml/vgg19_" + str(date) + ".mlmodel")
         coreml_model.save(os.getcwd() + "/exported_models/coreml/vgg19_" + str(date) + ".mlmodel")
 
+    elif(architecture == "vgg16"):
+        image_width, image_height = 256, 256
+        training_samples, validation_samples = get_nb_files(image_directory + "/training"), get_nb_files(image_directory + "/validation")
+        classes = len(glob.glob(image_directory + "/training/*"))
 
+
+        # perform data augmentation on the incoming images
+        training_data_generator = ImageDataGenerator(
+            preprocessing_function=applications.vgg16.preprocess_input,
+            rotation_range=30,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True
+        )
+
+        validation_data_generator = ImageDataGenerator(
+            preprocessing_function=applications.vgg16.preprocess_input,
+            rotation_range=30,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True
+        )
+
+        training_generator = training_data_generator.flow_from_directory(
+            image_directory + "/training",
+            target_size=(image_height, image_width),
+            batch_size=32
+        )
+
+        validation_generator = validation_data_generator.flow_from_directory(
+            image_directory + "/validation",
+            target_size=(image_height, image_width),
+            batch_size=32
+        )
+
+        # get the class names so that core ml can use them later on
+        class_names = list(training_generator.class_indices.keys())
+
+        # using the VGG19 pre-trained model
+        model = applications.vgg16.VGG16(weights = 'imagenet', include_top=False, input_shape=(image_width, image_height, 3))
+        print("")
+        print("Training model using VGG16... (This will take a while)")
+        print("")
+        x = model.output
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(1024, activation='relu')(x) #new FC layer, random init
+        predictions = Dense(classes, activation='softmax')(x) #new softmax layer
+        model = Model(inputs=model.input, outputs=predictions)
+        # freeze the layers
+        for layer in model.layers:
+            layer.trainable = False
+
+        model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+
+        # we're training the last convolutional block and the fully connected layer
+        for layer in model.layers[15:]:
+            layer.trainable = True
+
+        model.compile(optimizer=SGD(lr=0.0001, momentum=0.9, nesterov=True), loss='categorical_crossentropy', metrics=['accuracy'])
+
+
+        checkpoint = ModelCheckpoint("./saved_states/vgg16_1.h5", monitor="val_acc", verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+        early = EarlyStopping(monitor="val_acc", min_delta=0, patience=10, verbose=1, mode='auto')
+
+        model.fit_generator(
+            training_generator,
+            epochs=epochs,
+            steps_per_epoch=steps_per_epoch,
+            validation_data=validation_generator,
+            validation_steps=validation_steps,
+            class_weight="auto",
+            callbacks=[checkpoint, early]
+        )
+
+        # save the model weights for later use in Keras
+        date = datetime.datetime.now()
+        print("Saving model to: " + os.getcwd() + "/exported_models/keras/vgg16_" + str(date) + ".h5")
+        model.save(os.getcwd() + "/exported_models/keras/vgg16_" + str(date) + ".h5")
+        # convert the model now to coreml
+        print("Coverting model to CoreML model...")
+        coreml_model = coremltools.converters.keras.convert(
+            model,
+            input_names='image',
+            output_names='classProbabilities',
+            image_input_names='image',
+            class_labels=class_names
+        )
+        print("Saving CoreML model to: " + os.getcwd() + "/exported_models/coreml/vgg16_" + str(date) + ".mlmodel")
+        coreml_model.save(os.getcwd() + "/exported_models/coreml/vgg16_" + str(date) + ".mlmodel")
 
     else:
         sys.exit(architecture + " is not supported.")

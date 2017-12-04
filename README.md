@@ -85,13 +85,13 @@ python setup.py install
 
 ## Supported models
 
-As of now, Inception V3 is the only supported model type. In the future, all models supported by both `coremltools` and `keras` will be supported.
+As of now, only a few model architectures are supported. In the future, all models supported by both `coremltools` and `keras` will be supported.
 
 Future models include
 
 * Xception
-* VGG16
-* VGG19
+* VGG16 ✅
+* VGG19 ✅
 * ResNet50
 * InceptionV3 ✅
 * InceptionResNetV2
