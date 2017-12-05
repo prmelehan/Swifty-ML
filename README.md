@@ -89,10 +89,10 @@ As of now, only a few model architectures are supported. In the future, all mode
 
 Future models include
 
-* Xception
-* VGG16 ✅
-* VGG19 ✅
-* ResNet50
-* InceptionV3 ✅
-* InceptionResNetV2
-* MobileNet
+- [ ] Xception
+- [x] VGG16
+- [x] VGG19
+- [ ] ResNet50
+- [x] InceptionV3
+- [ ] InceptionResNetV2
+- [x] MobileNet
