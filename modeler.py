@@ -86,9 +86,9 @@ def train_and_convert(args):
     steps_per_epoch = 256
 
     # TESTING
-    epochs = 1
-    validation_steps = 2
-    steps_per_epoch = 5
+    # epochs = 1
+    # validation_steps = 2
+    # steps_per_epoch = 5
 
     # make sure the training and validation directories exist
     if(os.path.exists(image_directory + "/training") == False):
