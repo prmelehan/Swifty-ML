@@ -10,6 +10,9 @@ from keras.layers import Dropout, Flatten, Dense, GlobalAveragePooling2D
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TensorBoard, EarlyStopping, Callback
 from keras.optimizers import SGD
+# for handling the importing of models with custom functions
+from keras.utils.generic_utils import CustomObjectScope
+# file manipulation and conversion
 import coremltools
 import glob
 import os
@@ -41,12 +44,13 @@ def convert_pre_trained(args):
     # we need to get the model file, and convert it using the coremltools
     if(os.path.exists(model_path)):
         # grab the file and convert it
-        model = load_model(model_path)
-        # convert the model to coreML
-        coreml_model = coremltools.converters.keras.convert(model)
-        # save the model somewhere and give the path
-        coreml_model.save(output_name + ".mlmodel")
-        print("Converted model saved at: " + os.getcwd() + "/" + output_name + ".mlmodel")
+        with CustomObjectScope({'relu6': applications.mobilenet.relu6, 'DepthwiseConv2D': applications.mobilenet.DepthwiseConv2D}):
+            model = load_model(model_path)
+            # convert the model to coreML
+            coreml_model = coremltools.converters.keras.convert(model)
+            # save the model somewhere and give the path
+            coreml_model.save(output_name + ".mlmodel")
+            print("Converted model saved at: " + os.getcwd() + "/" + output_name + ".mlmodel")
     else:
         # otherwise lets say that there was an error
         print("Oops. There is no model at '" + model_path + "'. Did you make a typo?")
@@ -82,9 +86,9 @@ def train_and_convert(args):
     steps_per_epoch = 256
 
     # TESTING
-    # epochs = 1
-    # validation_steps = 2
-    # steps_per_epoch = 5
+    epochs = 1
+    validation_steps = 2
+    steps_per_epoch = 5
 
     # make sure the training and validation directories exist
     if(os.path.exists(image_directory + "/training") == False):
@@ -459,15 +463,16 @@ def train_and_convert(args):
         model.save(os.getcwd() + "/exported_models/keras/mobilenet_" + str(date) + ".h5")
         # convert the model now to coreml
         print("Coverting model to CoreML model...")
-        coreml_model = coremltools.converters.keras.convert(
-            model,
-            input_names='image',
-            output_names='classProbabilities',
-            image_input_names='image',
-            class_labels=class_names
-        )
-        print("Saving CoreML model to: " + os.getcwd() + "/exported_models/coreml/mobilenet_" + str(date) + ".mlmodel")
-        coreml_model.save(os.getcwd() + "/exported_models/coreml/mobilenet_" + str(date) + ".mlmodel")
+        with CustomObjectScope({'relu6': applications.mobilenet.relu6, 'DepthwiseConv2D': applications.mobilenet.DepthwiseConv2D}):
+            coreml_model = coremltools.converters.keras.convert(
+                model,
+                input_names='image',
+                output_names='classProbabilities',
+                image_input_names='image',
+                class_labels=class_names
+            )
+            print("Saving CoreML model to: " + os.getcwd() + "/exported_models/coreml/mobilenet_" + str(date) + ".mlmodel")
+            coreml_model.save(os.getcwd() + "/exported_models/coreml/mobilenet_" + str(date) + ".mlmodel")
 
     else:
         sys.exit(architecture + " is not supported.")
